@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from 'react'
 import io, { Socket } from 'socket.io-client'
+import WinningModal from './WinningModal'
 
 let socket: Socket
 
@@ -11,80 +12,141 @@ export default function TicTacToe() {
   const [isMyTurn, setIsMyTurn] = useState(false)
   const [player, setPlayer] = useState<'X' | 'O' | null>(null)
   const [gameStarted, setGameStarted] = useState(false)
+  const [gameOver, setGameOver] = useState(false)
+  const [winner, setWinner] = useState<'X' | 'O' | null>(null)
+
+  // Function to check for a winner
+  const calculateWinner = (squares: Array<'X' | 'O' | null>): 'X' | 'O' | null => {
+    const lines = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+        return squares[a];
+      }
+    }
+    return null;
+  };
+
+  // Reset game function
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setGameOver(false);
+    setWinner(null);
+    setGameStarted(false);
+    setIsMyTurn(false);
+
+    // Only emit if socket exists and is connected
+    if (socket && socket.connected) {
+      try {
+        socket.emit('leaveRoom', roomId);
+      } catch (error) {
+        console.error('Error leaving room:', error);
+      }
+    }
+  };
 
   useEffect(() => {
+    let mounted = true;  // Add mounted flag for cleanup
+
     const initSocket = async () => {
-      await fetch('/api/socket')
+      try {
+        await fetch('/api/socket')
 
-      socket = io({
-        path: '/api/socketio'
-      })
+        if (!mounted) return;  // Don't initialize if component unmounted
 
-      socket.on('connect', () => {
-        console.log('Connected to socket with ID:', socket.id)
-        setConnected(true)
-      })
+        socket = io({
+          path: '/api/socketio'
+        })
 
-      socket.on('disconnect', () => {
-        console.log('Disconnected from socket')
-        setConnected(false)
-      })
+        socket.on('connect', () => {
+          console.log('Connected to socket with ID:', socket.id)
+          setConnected(true)
+        })
 
-      socket.on('roomCreated', (id) => {
-        console.log('Room created:', id)
-        setRoomId(id)
-        setPlayer('X')
-      })
+        socket.on('disconnect', () => {
+          console.log('Disconnected from socket')
+          setConnected(false)
+        })
 
-      socket.on('gameStart', ({ players, currentBoard }) => {
-        console.log('Game starting with players:', players, 'Initial board:', currentBoard)
-        setGameStarted(true)
-
-        // Find player index in the players array
-        const playerIndex = players.indexOf(socket.id)
-        console.log('Player index:', playerIndex, 'Socket ID:', socket.id)
-
-        // Player at index 0 is X, player at index 2 is O
-        if (playerIndex === 0) {
+        socket.on('roomCreated', (id) => {
+          console.log('Room created:', id)
+          setRoomId(id)
           setPlayer('X')
-          setIsMyTurn(true)  // X goes first
-        } else if (playerIndex === 2) {
-          setPlayer('O')
-          setIsMyTurn(false)
-        } else {
-          console.error('Unexpected player index:', playerIndex)
+        })
+
+        socket.on('gameStart', ({ players, currentBoard }) => {
+          console.log('Game starting with players:', players, 'Initial board:', currentBoard)
+          setGameStarted(true)
+
+          // Find player index in the players array
+          const playerIndex = players.indexOf(socket.id)
+          console.log('Player index:', playerIndex, 'Socket ID:', socket.id)
+
+          // Player at index 0 is X, player at index 2 is O
+          if (playerIndex === 0) {
+            setPlayer('X')
+            setIsMyTurn(true)  // X goes first
+          } else if (playerIndex === 2) {
+            setPlayer('O')
+            setIsMyTurn(false)
+          } else {
+            console.error('Unexpected player index:', playerIndex)
+          }
+
+          if (currentBoard) {
+            console.log('Setting initial board state:', currentBoard)
+            setBoard(currentBoard)
+          }
+        })
+
+        socket.on('updateBoard', (newBoard) => {
+          console.log('Received board update:', newBoard)
+          if (Array.isArray(newBoard)) {
+            setBoard(newBoard)
+            setIsMyTurn(true)
+
+            // Check for winner after opponent's move
+            const gameWinner = calculateWinner(newBoard);
+            if (gameWinner) {
+              setWinner(gameWinner);
+              setGameOver(true);
+            }
+          } else {
+            console.error('Received invalid board update:', newBoard)
+          }
+        })
+
+        socket.on('playerDisconnected', () => {
+          alert('Other player disconnected')
+          setGameStarted(false)
+          setBoard(Array(9).fill(null))
+        })
+
+        socket.on('error', (message) => {
+          alert(message)
+        })
+      } catch (error) {
+        console.error('Socket initialization error:', error);
+        if (mounted) {
+          setConnected(false);
         }
-
-        if (currentBoard) {
-          console.log('Setting initial board state:', currentBoard)
-          setBoard(currentBoard)
-        }
-      })
-
-      socket.on('updateBoard', (newBoard) => {
-        console.log('Received board update:', newBoard)
-        if (Array.isArray(newBoard)) {  // Verify we received a valid board
-          setBoard(newBoard)
-          setIsMyTurn(true)
-        } else {
-          console.error('Received invalid board update:', newBoard)
-        }
-      })
-
-      socket.on('playerDisconnected', () => {
-        alert('Other player disconnected')
-        setGameStarted(false)
-        setBoard(Array(9).fill(null))
-      })
-
-      socket.on('error', (message) => {
-        alert(message)
-      })
+      }
     }
 
     initSocket()
 
     return () => {
+      mounted = false;  // Set mounted to false on cleanup
       if (socket) {
         socket.disconnect()
       }
@@ -113,24 +175,8 @@ export default function TicTacToe() {
   }
 
   const handleMove = (index: number) => {
-    console.log("Move attempt:", {
-      gameStarted,
-      isMyTurn,
-      currentBoard: board,
-      cellValue: board[index],
-      roomId,
-      player,
-      socketConnected: socket?.connected,
-      moveIndex: index
-    })
-
-    if (!gameStarted || !isMyTurn || board[index]) {
-      console.log('Move blocked:', {
-        gameStarted,
-        isMyTurn,
-        cellOccupied: board[index] !== null
-      })
-      return
+    if (!gameStarted || !isMyTurn || board[index] || gameOver) {
+      return;
     }
 
     if (!socket?.connected) {
@@ -143,24 +189,21 @@ export default function TicTacToe() {
     setBoard(newBoard);
     setIsMyTurn(false);
 
-    const moveData = { roomId, index, player, board: newBoard }
-    console.log('Emitting move:', moveData)
-
-    try {
-      socket.emit('move', moveData, (error: any) => {
-        if (error) {
-          console.error('Move error:', error);
-          setBoard(board);
-          setIsMyTurn(true);
-        } else {
-          console.log('Move successfully registered by server');
-        }
-      });
-    } catch (err) {
-      console.error('Error emitting move:', err);
-      setBoard(board);
-      setIsMyTurn(true);
+    // Check for winner after move
+    const gameWinner = calculateWinner(newBoard);
+    if (gameWinner) {
+      setWinner(gameWinner);
+      setGameOver(true);
     }
+
+    const moveData = { roomId, index, player, board: newBoard }
+    socket.emit('move', moveData, (error: any) => {
+      if (error) {
+        console.error('Move error:', error);
+        setBoard(board);
+        setIsMyTurn(true);
+      }
+    });
   }
 
   return (
@@ -214,6 +257,13 @@ export default function TicTacToe() {
             ))}
           </div>
         </div>
+      )}
+
+      {gameOver && winner && (
+        <WinningModal
+          winner={winner}
+          onNewGame={resetGame}
+        />
       )}
     </div>
   )
