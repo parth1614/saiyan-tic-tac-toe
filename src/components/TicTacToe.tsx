@@ -207,65 +207,102 @@ export default function TicTacToe() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-4">
-        Status: {connected ? 'Connected' : 'Disconnected'}
-        {connected && socket?.id && ` (ID: ${socket.id})`}
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 md:p-8 flex flex-col items-center justify-center">
+      <h1 className="text-4xl md:text-5xl font-bold text-white mb-8 text-center">
+        Saiyan Tic Tac Toe
+      </h1>
 
-      {!gameStarted ? (
-        <div className="space-y-4">
-          <button
-            onClick={createRoom}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-            disabled={!connected}
-          >
-            Create Room
-          </button>
-          <div>
-            <input
-              type="text"
-              value={roomId}
-              placeholder="Room ID"
-              className="border p-2 mr-2"
-              onChange={(e) => setRoomId(e.target.value)}
-            />
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl w-full max-w-md">
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500 text-white font-medium shadow-lg">
+            <div className={`w-2 h-2 rounded-full mr-2 ${connected ? 'bg-green-300 animate-pulse' : 'bg-red-400'}`} />
+            {connected ? 'Connected' : 'Disconnected'}
+            {connected && socket?.id &&
+              <span className="ml-2 text-sm opacity-75">ID: {socket.id.slice(0, 6)}...</span>
+            }
+          </div>
+        </div>
+
+        {!gameStarted ? (
+          <div className="space-y-6">
             <button
-              onClick={() => joinRoom(roomId)}
-              className="bg-green-500 text-white px-4 py-2 rounded"
+              onClick={createRoom}
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold text-lg shadow-lg 
+                hover:from-blue-600 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
               disabled={!connected}
             >
-              Join Room
+              Create New Room
             </button>
-          </div>
-          {roomId && <p>Room ID: {roomId}</p>}
-        </div>
-      ) : (
-        <div>
-          <p>You are player: {player}</p>
-          <p>{isMyTurn ? 'Your turn' : "Opponent's turn"}</p>
-          <div className="grid grid-cols-3 gap-2 w-64 mt-4">
-            {board.map((cell, index) => (
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={roomId}
+                placeholder="Enter Room ID"
+                className="w-full px-4 py-3 rounded-lg border-2 border-purple-200 focus:border-purple-500 focus:outline-none transition-colors text-gray-700"
+                onChange={(e) => setRoomId(e.target.value)}
+              />
               <button
-                key={index}
-                className={`h-20 bg-gray-200 text-4xl font-bold ${cell === 'X' ? 'text-blue-600' : 'text-red-600'
-                  }`}
-                onClick={() => handleMove(index)}
+                onClick={() => joinRoom(roomId)}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-semibold text-lg shadow-lg 
+                  hover:from-purple-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                disabled={!connected}
               >
-                {cell}
+                Join Room
               </button>
-            ))}
+            </div>
+            {roomId && (
+              <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-100">
+                <p className="text-purple-700 font-medium flex items-center justify-center">
+                  <span className="mr-2">🎮</span>
+                  Room ID: {roomId}
+                </p>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center">
+            <div className="mb-6 space-y-3">
+              <p className="text-2xl font-bold text-gray-800">
+                Player: <span className={`${player === 'X' ? 'text-blue-600' : 'text-red-600'}`}>{player}</span>
+              </p>
+              <div className={`text-xl font-medium px-4 py-2 rounded-lg ${isMyTurn
+                ? 'bg-green-100 text-green-700'
+                : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                {isMyTurn ? '🎯 Your turn' : "⌛ Opponent's turn"}
+              </div>
+            </div>
 
-      {gameOver && winner && (
-        <WinningModal
-          winner={winner}
-          onNewGame={resetGame}
-          currentPlayer={player}
-        />
-      )}
+            <div className="grid grid-cols-3 gap-3 w-full max-w-sm mx-auto">
+              {board.map((cell, index) => (
+                <button
+                  key={index}
+                  className={`
+                    h-24 rounded-xl font-bold text-5xl shadow-md
+                    ${!cell ? 'bg-white hover:bg-gray-50' : 'bg-white'}
+                    ${cell === 'X' ? 'text-blue-600' : 'text-red-600'}
+                    transition-all duration-200 transform
+                    ${isMyTurn && !cell && !gameOver ? 'hover:scale-105 hover:shadow-lg' : ''}
+                    ${!isMyTurn || cell || gameOver ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'}
+                  `}
+                  onClick={() => handleMove(index)}
+                  disabled={!isMyTurn || !!cell || gameOver}
+                >
+                  {cell && <span className="animate-scaleIn">{cell}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {gameOver && winner && (
+          <WinningModal
+            winner={winner}
+            onNewGame={resetGame}
+            currentPlayer={player}
+          />
+        )}
+      </div>
     </div>
-  )
+  );
 } 
