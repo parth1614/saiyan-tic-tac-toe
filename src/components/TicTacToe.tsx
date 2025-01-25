@@ -14,6 +14,7 @@ export default function TicTacToe() {
   const [gameStarted, setGameStarted] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const [winner, setWinner] = useState<'X' | 'O' | null>(null)
+  const [gameMode, setGameMode] = useState<'saiyan' | 'super-saiyan' | null>(null)
 
   // Function to check for a winner
   const calculateWinner = (squares: Array<'X' | 'O' | null>): 'X' | 'O' | null => {
@@ -84,27 +85,21 @@ export default function TicTacToe() {
           setPlayer('X')
         })
 
-        socket.on('gameStart', ({ players, currentBoard }) => {
-          console.log('Game starting with players:', players, 'Initial board:', currentBoard)
+        socket.on('gameStart', ({ players, currentBoard, mode }) => {
+          console.log('Game starting with players:', players, 'Initial board:', currentBoard, 'Mode:', mode)
           setGameStarted(true)
+          setGameMode(mode)
 
-          // Find player index in the players array
           const playerIndex = players.indexOf(socket.id)
-          console.log('Player index:', playerIndex, 'Socket ID:', socket.id)
-
-          // Player at index 0 is X, player at index 2 is O
           if (playerIndex === 0) {
             setPlayer('X')
-            setIsMyTurn(true)  // X goes first
+            setIsMyTurn(true)
           } else if (playerIndex === 2) {
             setPlayer('O')
             setIsMyTurn(false)
-          } else {
-            console.error('Unexpected player index:', playerIndex)
           }
 
           if (currentBoard) {
-            console.log('Setting initial board state:', currentBoard)
             setBoard(currentBoard)
           }
         })
@@ -158,7 +153,11 @@ export default function TicTacToe() {
       alert('Not connected to server')
       return
     }
-    socket.emit('createRoom')
+    if (!gameMode) {
+      alert('Please select a game mode first')
+      return
+    }
+    socket.emit('createRoom', { gameMode })
   }
 
   const joinRoom = (id: string) => {
@@ -166,12 +165,16 @@ export default function TicTacToe() {
       alert('Not connected to server')
       return
     }
+    if (!gameMode) {
+      alert('Please select a game mode first')
+      return
+    }
     if (!id.trim()) {
       alert('Please enter a room ID')
       return
     }
     console.log('Attempting to join room:', id)
-    socket.emit('joinRoom', id)
+    socket.emit('joinRoom', id, gameMode)
   }
 
   const handleMove = (index: number) => {
@@ -196,7 +199,7 @@ export default function TicTacToe() {
       setGameOver(true);
     }
 
-    const moveData = { roomId, index, player, board: newBoard }
+    const moveData = { roomId, index, player, board: newBoard, gameMode }
     socket.emit('move', moveData, (error: any) => {
       if (error) {
         console.error('Move error:', error);
@@ -225,11 +228,38 @@ export default function TicTacToe() {
 
         {!gameStarted ? (
           <div className="space-y-6">
+            {/* Game Mode Selection */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-800 text-center">Select Game Mode</h2>
+              <div className="grid grid-cols-1 gap-4">
+                <button
+                  onClick={() => setGameMode('saiyan')}
+                  className={`p-4 rounded-lg text-left transition-all duration-200 ${gameMode === 'saiyan'
+                    ? 'bg-blue-500 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  <div className="font-bold text-lg mb-1">🎮 Saiyan Mode</div>
+                  <div className="text-sm opacity-90">Classic rules - Get three in a row to win!</div>
+                </button>
+                <button
+                  onClick={() => setGameMode('super-saiyan')}
+                  className={`p-4 rounded-lg text-left transition-all duration-200 ${gameMode === 'super-saiyan'
+                    ? 'bg-purple-500 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  <div className="font-bold text-lg mb-1">⚡ Super Saiyan Mode</div>
+                  <div className="text-sm opacity-90">Reverse rules - Force your opponent to win!</div>
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={createRoom}
               className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold text-lg shadow-lg 
                 hover:from-blue-600 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
-              disabled={!connected}
+              disabled={!connected || !gameMode}
             >
               Create New Room
             </button>
@@ -245,7 +275,7 @@ export default function TicTacToe() {
                 onClick={() => joinRoom(roomId)}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-semibold text-lg shadow-lg 
                   hover:from-purple-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
-                disabled={!connected}
+                disabled={!connected || !gameMode}
               >
                 Join Room
               </button>
@@ -262,6 +292,13 @@ export default function TicTacToe() {
         ) : (
           <div className="text-center">
             <div className="mb-6 space-y-3">
+              <div className={`inline-flex items-center px-4 py-2 rounded-full ${gameMode === 'super-saiyan'
+                ? 'bg-gradient-to-r from-yellow-400 to-red-500'
+                : 'bg-gradient-to-r from-blue-400 to-indigo-500'
+                } text-white font-medium shadow-lg mb-4`}>
+                <span className="mr-2">{gameMode === 'super-saiyan' ? '⚡' : '🎮'}</span>
+                {gameMode === 'super-saiyan' ? 'Super Saiyan Mode' : 'Saiyan Mode'}
+              </div>
               <p className="text-2xl font-bold text-gray-800">
                 Player: <span className={`${player === 'X' ? 'text-blue-600' : 'text-red-600'}`}>{player}</span>
               </p>
@@ -271,6 +308,11 @@ export default function TicTacToe() {
                 }`}>
                 {isMyTurn ? '🎯 Your turn' : "⌛ Opponent's turn"}
               </div>
+              {gameMode === 'super-saiyan' && (
+                <p className="text-sm text-purple-600 font-medium mt-2">
+                  Remember: Force your opponent to win! 🎯
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-3 w-full max-w-sm mx-auto">
@@ -300,6 +342,7 @@ export default function TicTacToe() {
             winner={winner}
             onNewGame={resetGame}
             currentPlayer={player}
+            gameMode={gameMode}
           />
         )}
       </div>

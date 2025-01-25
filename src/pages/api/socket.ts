@@ -36,6 +36,7 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
 
     socket.on('createRoom', () => {
       const roomId = Math.random().toString(36).substring(7)
+      console.log("rooooooomId: ", roomId)
       console.log(`Creating room ${roomId} for player ${socket.id}`)
       rooms.set(roomId, {
         players: [socket.id],
