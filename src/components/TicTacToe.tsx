@@ -263,6 +263,7 @@ export default function TicTacToe() {
         <WinningModal
           winner={winner}
           onNewGame={resetGame}
+          currentPlayer={player}
         />
       )}
     </div>
