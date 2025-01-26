@@ -87,14 +87,16 @@ export default function TicTacToe() {
 
         socket.on('gameStart', ({ players, currentBoard, mode }) => {
           console.log('Game starting with players:', players, 'Initial board:', currentBoard, 'Mode:', mode)
+          console.log('Previous gameMode:', gameMode)
           setGameStarted(true)
           setGameMode(mode)
+          console.log('Setting gameMode to:', mode)
 
           const playerIndex = players.indexOf(socket.id)
           if (playerIndex === 0) {
             setPlayer('X')
             setIsMyTurn(true)
-          } else if (playerIndex === 2) {
+          } else {
             setPlayer('O')
             setIsMyTurn(false)
           }
@@ -147,6 +149,10 @@ export default function TicTacToe() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    console.log('gameMode changed:', gameMode);
+  }, [gameMode]);
 
   const createRoom = () => {
     if (!connected) {
@@ -212,7 +218,7 @@ export default function TicTacToe() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 md:p-8 flex flex-col items-center justify-center">
       <h1 className="text-4xl md:text-5xl font-bold text-white mb-8 text-center">
-        Saiyan Tic Tac Toe
+        {gameMode === 'super-saiyan' ? 'Super Saiyan' : 'Saiyan'} Tic Tac Toe
       </h1>
 
       <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl w-full max-w-md">

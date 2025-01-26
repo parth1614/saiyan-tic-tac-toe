@@ -34,19 +34,19 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
   io.on('connection', (socket) => {
     console.log('New client connected:', socket.id)
 
-    socket.on('createRoom', () => {
+    socket.on('createRoom', ({ gameMode }) => {
       const roomId = Math.random().toString(36).substring(7)
-      console.log("rooooooomId: ", roomId)
-      console.log(`Creating room ${roomId} for player ${socket.id}`)
+      console.log(`Creating room ${roomId} for player ${socket.id} with mode ${gameMode}`)
       rooms.set(roomId, {
         players: [socket.id],
-        board: Array(9).fill(null)
+        board: Array(9).fill(null),
+        gameMode: gameMode
       })
       socket.join(roomId)
       io.to(socket.id).emit('roomCreated', roomId)
     })
 
-    socket.on('joinRoom', (roomId) => {
+    socket.on('joinRoom', (roomId, gameMode) => {
       console.log(`Join attempt - Room: ${roomId}, Player: ${socket.id}`)
       const room = rooms.get(roomId)
 
@@ -63,10 +63,11 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
       room.players.push(socket.id)
       socket.join(roomId)
 
-      // Emit game start with current board state
+      // Emit game start with current board state and game mode
       io.to(roomId).emit('gameStart', {
         players: room.players,
-        currentBoard: room.board
+        currentBoard: room.board,
+        mode: room.gameMode
       })
     })
 
