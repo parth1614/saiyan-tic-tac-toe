@@ -105,16 +105,22 @@ export default function TicTacToe() {
   }
 
   useEffect(() => {
-    let mounted = true;  // Add mounted flag for cleanup
+    let mounted = true;
 
     const initSocket = async () => {
       try {
         await fetch('/api/socket')
 
-        if (!mounted) return;  // Don't initialize if component unmounted
+        if (!mounted) return;
 
         socket = io({
-          path: '/api/socketio'
+          path: '/api/socketio',
+          addTrailingSlash: false,
+          // Add these configurations for Vercel deployment
+          transports: ['websocket'],
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000
         })
 
         socket.on('connect', () => {
@@ -200,7 +206,7 @@ export default function TicTacToe() {
     initSocket()
 
     return () => {
-      mounted = false;  // Set mounted to false on cleanup
+      mounted = false;
       if (socket) {
         socket.disconnect()
       }

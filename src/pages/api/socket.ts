@@ -54,6 +54,12 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
   const io = new Server(res.socket.server, {
     path: '/api/socketio',
     addTrailingSlash: false,
+    cors: {
+      origin: process.env.NEXT_PUBLIC_SITE_URL || "*",
+      methods: ["GET", "POST"]
+    },
+    transports: ['websocket'],
+    pingTimeout: 60000
   })
   res.socket.server.io = io
 
