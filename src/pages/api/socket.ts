@@ -37,10 +37,18 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
     socket.on('createRoom', ({ gameMode }) => {
       const roomId = Math.random().toString(36).substring(7)
       console.log(`Creating room ${roomId} for player ${socket.id} with mode ${gameMode}`)
+
+      // Initialize board based on game mode
+      const board = gameMode === 'super-saiyan-god'
+        ? Array(9).fill(null).map(() => Array(9).fill(null)) // 9x9 grid for ultimate mode
+        : Array(9).fill(null) // Regular 3x3 grid for other modes
+
       rooms.set(roomId, {
         players: [socket.id],
-        board: Array(9).fill(null),
-        gameMode: gameMode
+        board: board,
+        gameMode: gameMode,
+        activeBoard: null, // For ultimate mode: tracks which sub-board is active
+        wonBoards: gameMode === 'super-saiyan-god' ? Array(9).fill(null) : null // Tracks won sub-boards
       })
       socket.join(roomId)
       io.to(socket.id).emit('roomCreated', roomId)
@@ -85,6 +93,30 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
 
       // Broadcast move to all other players in the room
       socket.to(roomId).emit('updateBoard', board)
+      callback(null)
+    })
+
+    // Add handler for ultimate mode moves
+    socket.on('ultimateMove', (moveData, callback) => {
+      const { roomId, mainIndex, subIndex, player, mainBoard, wonBoards, activeBoard } = moveData
+      const room = rooms.get(roomId)
+
+      if (!room) {
+        callback('Room not found')
+        return
+      }
+
+      // Update room's board state
+      room.board = mainBoard
+      room.wonBoards = wonBoards
+      room.activeBoard = activeBoard
+
+      // Broadcast move to other player
+      socket.to(roomId).emit('updateUltimateBoard', {
+        mainBoard,
+        wonBoards,
+        activeBoard
+      })
       callback(null)
     })
 

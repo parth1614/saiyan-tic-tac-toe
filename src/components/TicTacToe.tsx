@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import io, { Socket } from 'socket.io-client'
 import WinningModal from './WinningModal'
+import UltimateTicTacToe from './UltimateTicTacToe'
 
 let socket: Socket
 
@@ -14,7 +15,12 @@ export default function TicTacToe() {
   const [gameStarted, setGameStarted] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const [winner, setWinner] = useState<'X' | 'O' | null>(null)
-  const [gameMode, setGameMode] = useState<'saiyan' | 'super-saiyan' | null>(null)
+  const [gameMode, setGameMode] = useState<'saiyan' | 'super-saiyan' | 'super-saiyan-god' | null>(null)
+  const [mainBoard, setMainBoard] = useState<Array<Array<string | null>>>(
+    Array(9).fill(null).map(() => Array(9).fill(null))
+  );
+  const [activeBoard, setActiveBoard] = useState<number | null>(null);
+  const [wonBoards, setWonBoards] = useState<Array<string | null>>(Array(9).fill(null));
 
   // Function to check for a winner
   const calculateWinner = (squares: Array<'X' | 'O' | null>): 'X' | 'O' | null => {
@@ -40,7 +46,13 @@ export default function TicTacToe() {
 
   // Reset game function
   const resetGame = () => {
-    setBoard(Array(9).fill(null));
+    if (gameMode === 'super-saiyan-god') {
+      setMainBoard(Array(9).fill(null).map(() => Array(9).fill(null)));
+      setWonBoards(Array(9).fill(null));
+      setActiveBoard(null);
+    } else {
+      setBoard(Array(9).fill(null));
+    }
     setGameOver(false);
     setWinner(null);
     setGameStarted(false);
@@ -86,23 +98,26 @@ export default function TicTacToe() {
         })
 
         socket.on('gameStart', ({ players, currentBoard, mode }) => {
-          console.log('Game starting with players:', players, 'Initial board:', currentBoard, 'Mode:', mode)
-          console.log('Previous gameMode:', gameMode)
-          setGameStarted(true)
-          setGameMode(mode)
-          console.log('Setting gameMode to:', mode)
+          console.log('Game starting:', { players, currentBoard, mode });
+          setGameStarted(true);
+          setGameMode(mode);
 
-          const playerIndex = players.indexOf(socket.id)
-          if (playerIndex === 0) {
-            setPlayer('X')
-            setIsMyTurn(true)
+          // Reset game state for new game
+          if (mode === 'super-saiyan-god') {
+            setMainBoard(Array(9).fill(null).map(() => Array(9).fill(null)));
+            setWonBoards(Array(9).fill(null));
+            setActiveBoard(null);
           } else {
-            setPlayer('O')
-            setIsMyTurn(false)
+            setBoard(Array(9).fill(null));
           }
 
-          if (currentBoard) {
-            setBoard(currentBoard)
+          const playerIndex = players.indexOf(socket.id);
+          if (playerIndex === 0) {
+            setPlayer('X');
+            setIsMyTurn(true);
+          } else {
+            setPlayer('O');
+            setIsMyTurn(false);
           }
         })
 
@@ -132,6 +147,13 @@ export default function TicTacToe() {
         socket.on('error', (message) => {
           alert(message)
         })
+
+        socket.on('updateUltimateBoard', ({ mainBoard, wonBoards, activeBoard }) => {
+          setMainBoard(mainBoard);
+          setWonBoards(wonBoards);
+          setActiveBoard(activeBoard);
+          setIsMyTurn(true);
+        });
       } catch (error) {
         console.error('Socket initialization error:', error);
         if (mounted) {
@@ -147,6 +169,7 @@ export default function TicTacToe() {
       if (socket) {
         socket.disconnect()
       }
+      socket.off('updateUltimateBoard');
     }
   }, [])
 
@@ -215,13 +238,81 @@ export default function TicTacToe() {
     });
   }
 
+  const handleUltimateMove = (mainIndex: number, subIndex: number) => {
+    if (!isMyTurn || gameOver) return;
+
+    // Check if the move is valid (correct board and empty cell)
+    if (activeBoard !== null && activeBoard !== mainIndex) return;
+    if (wonBoards[mainIndex] !== null) return;
+    if (mainBoard[mainIndex][subIndex] !== null) return;
+
+    // Create new board state
+    const newMainBoard = mainBoard.map(subBoard => [...subBoard]);
+    newMainBoard[mainIndex][subIndex] = player;
+    setMainBoard(newMainBoard);
+
+    // Check if the sub-board is won
+    const subBoardArray = newMainBoard[mainIndex];
+    const subBoardWinner = calculateWinner(subBoardArray);
+
+    // Check if the sub-board is full (tie)
+    const isSubBoardFull = !subBoardArray.includes(null);
+
+    const newWonBoards = [...wonBoards];
+    if (subBoardWinner || isSubBoardFull) {
+      newWonBoards[mainIndex] = subBoardWinner; // null for tie, 'X' or 'O' for win
+      setWonBoards(newWonBoards);
+
+      // Check if the main board is won
+      const mainBoardWinner = calculateWinner(newWonBoards);
+      if (mainBoardWinner) {
+        setWinner(mainBoardWinner);
+        setGameOver(true);
+      } else if (!newWonBoards.includes(null)) {
+        // Check for main board tie
+        setGameOver(true);
+      }
+    }
+
+    // Determine next active board
+    let nextActiveBoard = subIndex;
+    if (newWonBoards[subIndex] !== null || !newMainBoard[subIndex].includes(null)) {
+      // If the target board is won or full, allow play on any available board
+      nextActiveBoard = null;
+    }
+    setActiveBoard(nextActiveBoard);
+
+    // Update turn and emit move
+    setIsMyTurn(false);
+
+    socket.emit('ultimateMove', {
+      roomId,
+      mainIndex,
+      subIndex,
+      player,
+      mainBoard: newMainBoard,
+      wonBoards: newWonBoards,
+      activeBoard: nextActiveBoard
+    }, (error: any) => {
+      if (error) {
+        console.error('Move error:', error);
+        // Revert changes on error
+        setMainBoard(mainBoard);
+        setWonBoards(wonBoards);
+        setActiveBoard(activeBoard);
+        setIsMyTurn(true);
+      }
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 md:p-8 flex flex-col items-center justify-center">
       <h1 className="text-4xl md:text-5xl font-bold text-white mb-8 text-center">
-        {gameMode === 'super-saiyan' ? 'Super Saiyan' : 'Saiyan'} Tic Tac Toe
+        {gameMode === 'super-saiyan' ? 'Super Saiyan' : gameMode === 'super-saiyan-god' ? 'Super Saiyan God Mode' : 'Saiyan'} Tic Tac Toe
       </h1>
 
-      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl w-full max-w-md">
+      <div className={`bg-white/90 backdrop-blur-sm rounded-xl p-6 md:p-8 shadow-2xl w-full 
+        ${gameMode === 'super-saiyan-god' ? 'max-w-6xl' : 'max-w-md'}`}>
         <div className="mb-6 text-center">
           <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500 text-white font-medium shadow-lg">
             <div className={`w-2 h-2 rounded-full mr-2 ${connected ? 'bg-green-300 animate-pulse' : 'bg-red-400'}`} />
@@ -245,7 +336,7 @@ export default function TicTacToe() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
-                  <div className="font-bold text-lg mb-1">🎮 Saiyan Mode</div>
+                  <div className="font-bold text-lg mb-1">Saiyan Mode</div>
                   <div className="text-sm opacity-90">Classic rules - Get three in a row to win!</div>
                 </button>
                 <button
@@ -257,6 +348,16 @@ export default function TicTacToe() {
                 >
                   <div className="font-bold text-lg mb-1">⚡ Super Saiyan Mode</div>
                   <div className="text-sm opacity-90">Reverse rules - Force your opponent to win!</div>
+                </button>
+                <button
+                  onClick={() => setGameMode('super-saiyan-god')}
+                  className={`p-4 rounded-lg text-left transition-all duration-200 ${gameMode === 'super-saiyan-god'
+                    ? 'bg-red-500 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  <div className="font-bold text-lg mb-1">🔥 Super Saiyan God Mode</div>
+                  <div className="text-sm opacity-90">Ultimate 9x9 grid battle!</div>
                 </button>
               </div>
             </div>
@@ -298,48 +399,67 @@ export default function TicTacToe() {
         ) : (
           <div className="text-center">
             <div className="mb-6 space-y-3">
-              <div className={`inline-flex items-center px-4 py-2 rounded-full ${gameMode === 'super-saiyan'
-                ? 'bg-gradient-to-r from-yellow-400 to-red-500'
-                : 'bg-gradient-to-r from-blue-400 to-indigo-500'
+              <div className={`inline-flex items-center px-4 py-2 rounded-full ${gameMode === 'super-saiyan-god'
+                ? 'bg-gradient-to-r from-red-400 to-orange-500'
+                : gameMode === 'super-saiyan'
+                  ? 'bg-gradient-to-r from-yellow-400 to-red-500'
+                  : 'bg-gradient-to-r from-blue-400 to-indigo-500'
                 } text-white font-medium shadow-lg mb-4`}>
-                <span className="mr-2">{gameMode === 'super-saiyan' ? '⚡' : '🎮'}</span>
-                {gameMode === 'super-saiyan' ? 'Super Saiyan Mode' : 'Saiyan Mode'}
+                <span className="mr-2">
+                  {gameMode === 'super-saiyan-god' ? '🔥' : gameMode === 'super-saiyan' ? '⚡' : '🎮'}
+                </span>
+                {gameMode === 'super-saiyan-god'
+                  ? 'Super Saiyan God Mode'
+                  : gameMode === 'super-saiyan'
+                    ? 'Super Saiyan Mode'
+                    : 'Saiyan Mode'}
               </div>
+
               <p className="text-2xl font-bold text-gray-800">
                 Player: <span className={`${player === 'X' ? 'text-blue-600' : 'text-red-600'}`}>{player}</span>
               </p>
-              <div className={`text-xl font-medium px-4 py-2 rounded-lg ${isMyTurn
-                ? 'bg-green-100 text-green-700'
-                : 'bg-yellow-100 text-yellow-700'
+
+              <div className={`text-xl font-medium px-4 py-2 rounded-lg ${isMyTurn ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                 }`}>
                 {isMyTurn ? '🎯 Your turn' : "⌛ Opponent's turn"}
               </div>
-              {gameMode === 'super-saiyan' && (
-                <p className="text-sm text-purple-600 font-medium mt-2">
-                  Remember: Force your opponent to win! 🎯
+
+              {gameMode === 'super-saiyan-god' && (
+                <p className="text-sm text-red-600 font-medium mt-2">
+                  Win sub-boards to claim the main board! Your next move must be in the highlighted sub-board.
                 </p>
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-3 w-full max-w-sm mx-auto">
-              {board.map((cell, index) => (
-                <button
-                  key={index}
-                  className={`
-                    h-24 rounded-xl font-bold text-5xl shadow-md
-                    ${!cell ? 'bg-white hover:bg-gray-50' : 'bg-white'}
-                    ${cell === 'X' ? 'text-blue-600' : 'text-red-600'}
-                    transition-all duration-200 transform
-                    ${isMyTurn && !cell && !gameOver ? 'hover:scale-105 hover:shadow-lg' : ''}
-                    ${!isMyTurn || cell || gameOver ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'}
-                  `}
-                  onClick={() => handleMove(index)}
-                  disabled={!isMyTurn || !!cell || gameOver}
-                >
-                  {cell && <span className="animate-scaleIn">{cell}</span>}
-                </button>
-              ))}
-            </div>
+            {gameMode === 'super-saiyan-god' ? (
+              <UltimateTicTacToe
+                isMyTurn={isMyTurn}
+                onMove={handleUltimateMove}
+                mainBoard={mainBoard}
+                activeBoard={activeBoard}
+                wonBoards={wonBoards}
+              />
+            ) : (
+              <div className="grid grid-cols-3 gap-3 w-full max-w-sm mx-auto">
+                {board.map((cell, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleMove(index)}
+                    disabled={!isMyTurn || !!cell || gameOver}
+                    className={`
+                      h-24 rounded-xl font-bold text-5xl shadow-md
+                      ${!cell ? 'bg-white hover:bg-gray-50' : 'bg-white'}
+                      ${cell === 'X' ? 'text-blue-600' : 'text-red-600'}
+                      transition-all duration-200 transform
+                      ${isMyTurn && !cell && !gameOver ? 'hover:scale-105 hover:shadow-lg' : ''}
+                      ${!isMyTurn || cell || gameOver ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'}
+                    `}
+                  >
+                    {cell && <span className="animate-scaleIn">{cell}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
