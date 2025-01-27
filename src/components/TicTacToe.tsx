@@ -6,6 +6,43 @@ import UltimateTicTacToe from './UltimateTicTacToe'
 
 let socket: Socket
 
+// Remove unused MoveCallback interface
+// interface MoveCallback {
+//   (error: string | null): void;
+// }
+
+// Keep these interfaces since they're used in socket.emit() calls
+interface MoveData {
+  roomId: string;
+  index: number;
+  player: 'X' | 'O';
+  board: Array<string | null>;
+  gameMode: 'saiyan' | 'super-saiyan' | 'super-saiyan-god';
+}
+
+interface UltimateMoveData {
+  roomId: string;
+  mainIndex: number;
+  subIndex: number;
+  player: 'X' | 'O';
+  mainBoard: Array<Array<string | null>>;
+  wonBoards: Array<string | null>;
+  activeBoard: number | null;
+}
+
+// Update GameStartData to remove unused properties
+interface GameStartData {
+  players: string[];
+  currentBoard: Array<string | null> | Array<Array<string | null>>;
+  mode: 'saiyan' | 'super-saiyan' | 'super-saiyan-god';
+}
+
+interface UltimateBoardUpdate {
+  mainBoard: Array<Array<string | null>>;
+  wonBoards: Array<string | null>;
+  activeBoard: number | null;
+}
+
 export default function TicTacToe() {
   const [connected, setConnected] = useState(false)
   const [roomId, setRoomId] = useState('')
@@ -17,10 +54,9 @@ export default function TicTacToe() {
   const [winner, setWinner] = useState<'X' | 'O' | null>(null)
   const [gameMode, setGameMode] = useState<'saiyan' | 'super-saiyan' | 'super-saiyan-god' | null>(null)
   const [mainBoard, setMainBoard] = useState<Array<Array<string | null>>>(
-    Array(9).fill(null).map(() => Array(9).fill(null))
-  );
-  const [activeBoard, setActiveBoard] = useState<number | null>(null);
-  const [wonBoards, setWonBoards] = useState<Array<string | null>>(Array(9).fill(null));
+    Array(9).fill(null).map(() => Array(9).fill(null)))
+  const [activeBoard, setActiveBoard] = useState<number | null>(null)
+  const [wonBoards, setWonBoards] = useState<Array<string | null>>(Array(9).fill(null))
 
   // Function to check for a winner
   const calculateWinner = (squares: Array<'X' | 'O' | null>): 'X' | 'O' | null => {
@@ -47,26 +83,26 @@ export default function TicTacToe() {
   // Reset game function
   const resetGame = () => {
     if (gameMode === 'super-saiyan-god') {
-      setMainBoard(Array(9).fill(null).map(() => Array(9).fill(null)));
-      setWonBoards(Array(9).fill(null));
-      setActiveBoard(null);
+      setMainBoard(Array(9).fill(null).map(() => Array(9).fill(null)))
+      setWonBoards(Array(9).fill(null))
+      setActiveBoard(null)
     } else {
-      setBoard(Array(9).fill(null));
+      setBoard(Array(9).fill(null))
     }
-    setGameOver(false);
-    setWinner(null);
-    setGameStarted(false);
-    setIsMyTurn(false);
+    setGameOver(false)
+    setWinner(null)
+    setGameStarted(false)
+    setIsMyTurn(false)
 
     // Only emit if socket exists and is connected
     if (socket && socket.connected) {
       try {
-        socket.emit('leaveRoom', roomId);
+        socket.emit('leaveRoom', roomId)
       } catch (error) {
-        console.error('Error leaving room:', error);
+        console.error('Error leaving room:', error)
       }
     }
-  };
+  }
 
   useEffect(() => {
     let mounted = true;  // Add mounted flag for cleanup
@@ -97,12 +133,11 @@ export default function TicTacToe() {
           setPlayer('X')
         })
 
-        socket.on('gameStart', ({ players, currentBoard, mode }) => {
+        socket.on('gameStart', ({ players, currentBoard, mode }: GameStartData) => {
           console.log('Game starting:', { players, currentBoard, mode });
           setGameStarted(true);
           setGameMode(mode);
 
-          // Reset game state for new game
           if (mode === 'super-saiyan-god') {
             setMainBoard(Array(9).fill(null).map(() => Array(9).fill(null)));
             setWonBoards(Array(9).fill(null));
@@ -111,7 +146,7 @@ export default function TicTacToe() {
             setBoard(Array(9).fill(null));
           }
 
-          const playerIndex = players.indexOf(socket.id);
+          const playerIndex = players.indexOf(socket.id || '');
           if (playerIndex === 0) {
             setPlayer('X');
             setIsMyTurn(true);
@@ -148,7 +183,7 @@ export default function TicTacToe() {
           alert(message)
         })
 
-        socket.on('updateUltimateBoard', ({ mainBoard, wonBoards, activeBoard }) => {
+        socket.on('updateUltimateBoard', ({ mainBoard, wonBoards, activeBoard }: UltimateBoardUpdate) => {
           setMainBoard(mainBoard);
           setWonBoards(wonBoards);
           setActiveBoard(activeBoard);
@@ -228,8 +263,14 @@ export default function TicTacToe() {
       setGameOver(true);
     }
 
-    const moveData = { roomId, index, player, board: newBoard, gameMode }
-    socket.emit('move', moveData, (error: any) => {
+    const moveData: MoveData = {
+      roomId,
+      index,
+      player: player as 'X' | 'O',
+      board: newBoard,
+      gameMode: gameMode as 'saiyan' | 'super-saiyan' | 'super-saiyan-god'
+    };
+    socket.emit('move', moveData, (error: string | null) => {
       if (error) {
         console.error('Move error:', error);
         setBoard(board);
@@ -253,7 +294,7 @@ export default function TicTacToe() {
 
     // Check if the sub-board is won
     const subBoardArray = newMainBoard[mainIndex];
-    const subBoardWinner = calculateWinner(subBoardArray);
+    const subBoardWinner = calculateWinner(subBoardArray as ('X' | 'O' | null)[]);
 
     // Check if the sub-board is full (tie)
     const isSubBoardFull = !subBoardArray.includes(null);
@@ -264,7 +305,7 @@ export default function TicTacToe() {
       setWonBoards(newWonBoards);
 
       // Check if the main board is won
-      const mainBoardWinner = calculateWinner(newWonBoards);
+      const mainBoardWinner = calculateWinner(newWonBoards as ('X' | 'O' | null)[]);
       if (mainBoardWinner) {
         setWinner(mainBoardWinner);
         setGameOver(true);
@@ -275,7 +316,7 @@ export default function TicTacToe() {
     }
 
     // Determine next active board
-    let nextActiveBoard = subIndex;
+    let nextActiveBoard: number | null = subIndex;
     if (newWonBoards[subIndex] !== null || !newMainBoard[subIndex].includes(null)) {
       // If the target board is won or full, allow play on any available board
       nextActiveBoard = null;
@@ -285,18 +326,18 @@ export default function TicTacToe() {
     // Update turn and emit move
     setIsMyTurn(false);
 
-    socket.emit('ultimateMove', {
+    const moveData: UltimateMoveData = {
       roomId,
       mainIndex,
       subIndex,
-      player,
+      player: player as 'X' | 'O',
       mainBoard: newMainBoard,
       wonBoards: newWonBoards,
       activeBoard: nextActiveBoard
-    }, (error: any) => {
+    };
+    socket.emit('ultimateMove', moveData, (error: string | null) => {
       if (error) {
         console.error('Move error:', error);
-        // Revert changes on error
         setMainBoard(mainBoard);
         setWonBoards(wonBoards);
         setActiveBoard(activeBoard);

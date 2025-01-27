@@ -15,7 +15,33 @@ interface NextApiResponseWithSocket extends NextApiResponse {
   socket: SocketWithIO
 }
 
-const rooms = new Map()
+interface RoomData {
+  players: string[];
+  board: Array<string | null> | Array<Array<string | null>>;
+  gameMode: 'saiyan' | 'super-saiyan' | 'super-saiyan-god';
+  activeBoard: number | null;
+  wonBoards: Array<string | null> | null;
+  creator: string;
+}
+
+interface MoveData {
+  roomId: string;
+  index: number;
+  player: 'X' | 'O';
+  board: Array<string | null>;
+}
+
+interface UltimateMoveData {
+  roomId: string;
+  mainIndex: number;
+  subIndex: number;
+  player: 'X' | 'O';
+  mainBoard: Array<Array<string | null>>;
+  wonBoards: Array<string | null>;
+  activeBoard: number | null;
+}
+
+const rooms: Map<string, RoomData> = new Map()
 
 export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWithSocket) {
   if (res.socket.server.io) {
@@ -48,13 +74,14 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
         board: board,
         gameMode: gameMode,
         activeBoard: null, // For ultimate mode: tracks which sub-board is active
-        wonBoards: gameMode === 'super-saiyan-god' ? Array(9).fill(null) : null // Tracks won sub-boards
+        wonBoards: gameMode === 'super-saiyan-god' ? Array(9).fill(null) : null, // Tracks won sub-boards
+        creator: socket.id
       })
       socket.join(roomId)
       io.to(socket.id).emit('roomCreated', roomId)
     })
 
-    socket.on('joinRoom', (roomId, gameMode) => {
+    socket.on('joinRoom', (roomId: string) => {
       console.log(`Join attempt - Room: ${roomId}, Player: ${socket.id}`)
       const room = rooms.get(roomId)
 
@@ -79,8 +106,8 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
       })
     })
 
-    socket.on('move', (moveData, callback) => {
-      const { roomId, index, player, board } = moveData
+    socket.on('move', (moveData: MoveData, callback: (error: string | null) => void) => {
+      const { roomId, board } = moveData
       const room = rooms.get(roomId)
 
       if (!room) {
@@ -97,8 +124,8 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
     })
 
     // Add handler for ultimate mode moves
-    socket.on('ultimateMove', (moveData, callback) => {
-      const { roomId, mainIndex, subIndex, player, mainBoard, wonBoards, activeBoard } = moveData
+    socket.on('ultimateMove', (moveData: UltimateMoveData, callback: (error: string | null) => void) => {
+      const { roomId, mainBoard, wonBoards, activeBoard } = moveData
       const room = rooms.get(roomId)
 
       if (!room) {

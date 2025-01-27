@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ReactElement } from 'react';
 
 interface Props {
   isMyTurn: boolean;
@@ -8,7 +8,7 @@ interface Props {
   wonBoards: Array<string | null>;
 }
 
-export default function UltimateTicTacToe({ isMyTurn, onMove, mainBoard, activeBoard, wonBoards }: Props) {
+export default function UltimateTicTacToe({ isMyTurn, onMove, mainBoard, activeBoard, wonBoards }: Props): ReactElement {
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* Main game board */}
