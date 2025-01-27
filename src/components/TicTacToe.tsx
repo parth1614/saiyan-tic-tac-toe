@@ -109,19 +109,20 @@ export default function TicTacToe() {
 
     const initSocket = async () => {
       try {
-        await fetch('/api/socket')
+        const socketUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+        await fetch('/api/socket');
 
         if (!mounted) return;
 
-        socket = io({
+        socket = io(socketUrl, {
           path: '/api/socketio',
           addTrailingSlash: false,
-          // Add these configurations for Vercel deployment
           transports: ['websocket'],
           reconnection: true,
           reconnectionAttempts: 5,
-          reconnectionDelay: 1000
-        })
+          reconnectionDelay: 1000,
+          secure: true
+        });
 
         socket.on('connect', () => {
           console.log('Connected to socket with ID:', socket.id)
