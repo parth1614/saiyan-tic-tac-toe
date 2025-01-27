@@ -8,7 +8,7 @@
   },
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "src/pages/api/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Credentials",
@@ -31,7 +31,7 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
+      "source": "src/pages/api/:path*",
       "destination": "/api/:path*"
     }
   ]
