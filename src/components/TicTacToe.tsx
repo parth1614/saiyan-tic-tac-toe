@@ -326,38 +326,49 @@ export default function TicTacToe() {
         {!gameStarted ? (
           <div className="space-y-6">
             {/* Game Mode Selection */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-gray-800 text-center">Select Game Mode</h2>
+            <div className="text-center space-y-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">Select Game Mode</h2>
               <div className="grid grid-cols-1 gap-4">
                 <button
                   onClick={() => setGameMode('saiyan')}
-                  className={`p-4 rounded-lg text-left transition-all duration-200 ${gameMode === 'saiyan'
-                    ? 'bg-blue-500 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  className={`
+                    p-4 rounded-lg text-left transition-all duration-300
+                    ${gameMode === 'saiyan'
+                      ? 'bg-blue-500 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 hover:bg-blue-100 hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] text-gray-700'
+                    }
+                  `}
                 >
                   <div className="font-bold text-lg mb-1">Saiyan Mode</div>
                   <div className="text-sm opacity-90">Classic rules - Get three in a row to win!</div>
                 </button>
+
                 <button
                   onClick={() => setGameMode('super-saiyan')}
-                  className={`p-4 rounded-lg text-left transition-all duration-200 ${gameMode === 'super-saiyan'
-                    ? 'bg-purple-500 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  className={`
+                    p-4 rounded-lg text-left transition-all duration-300
+                    ${gameMode === 'super-saiyan'
+                      ? 'bg-yellow-500 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 hover:bg-yellow-100 hover:shadow-[0_0_15px_rgba(252,211,77,0.5)] text-gray-700'
+                    }
+                  `}
                 >
-                  <div className="font-bold text-lg mb-1">⚡ Super Saiyan Mode</div>
-                  <div className="text-sm opacity-90">Reverse rules - Force your opponent to win!</div>
+                  <div className="font-bold text-lg mb-1">Super Saiyan Mode</div>
+                  <div className="text-sm opacity-90">Reverse rules - Make your opponent win to claim victory!</div>
                 </button>
+
                 <button
                   onClick={() => setGameMode('super-saiyan-god')}
-                  className={`p-4 rounded-lg text-left transition-all duration-200 ${gameMode === 'super-saiyan-god'
-                    ? 'bg-red-500 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  className={`
+                    p-4 rounded-lg text-left transition-all duration-300
+                    ${gameMode === 'super-saiyan-god'
+                      ? 'bg-red-500 text-white shadow-lg scale-105'
+                      : 'bg-gray-100 hover:bg-red-100 hover:shadow-[0_0_15px_rgba(239,68,68,0.5)] text-gray-700'
+                    }
+                  `}
                 >
-                  <div className="font-bold text-lg mb-1">🔥 Super Saiyan God Mode</div>
-                  <div className="text-sm opacity-90">Ultimate 9x9 grid battle!</div>
+                  <div className="font-bold text-lg mb-1">Super Saiyan God Mode</div>
+                  <div className="text-sm opacity-90">Ultimate 9x9 strategic battle - Win sub-boards to claim victory!</div>
                 </button>
               </div>
             </div>
