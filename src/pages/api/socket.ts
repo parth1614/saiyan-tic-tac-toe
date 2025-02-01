@@ -129,7 +129,6 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
       callback(null)
     })
 
-    // Add handler for ultimate mode moves
     socket.on('ultimateMove', (moveData: UltimateMoveData, callback: (error: string | null) => void) => {
       const { roomId, mainBoard, wonBoards, activeBoard } = moveData
       const room = rooms.get(roomId)
@@ -155,7 +154,24 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id)
-      // Optional: Implement room cleanup logic
+
+      // Find the room the player was in
+      for (const [roomId, room] of rooms.entries()) {
+        if (room.players.includes(socket.id)) {
+          // Remove the player from the room
+          room.players = room.players.filter(player => player !== socket.id)
+
+          if (room.players.length === 0) {
+            // If no players are left, delete the room
+            rooms.delete(roomId)
+            console.log(`Room ${roomId} deleted due to inactivity`)
+          } else {
+            // Notify the remaining player that their opponent left
+            io.to(roomId).emit('opponentLeft', { message: 'Your opponent has left the game' })
+          }
+          break // Exit loop after finding the player's room
+        }
+      }
     })
   })
 
