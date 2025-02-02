@@ -56,10 +56,18 @@ export default function SocketHandler(_: NextApiRequest, res: NextApiResponseWit
     addTrailingSlash: false,
     cors: {
       origin: process.env.NEXT_PUBLIC_SITE_URL || "*",
-      methods: ["GET", "POST"]
+      methods: ["GET", "POST"],
+      credentials: true,
+
     },
-    transports: ['websocket'],
-    pingTimeout: 60000
+    transports: ['websocket', "polling"],
+    pingTimeout: 60000,
+    cookie: {
+      name: "io",
+      path: "/",
+      httpOnly: true,
+      secure: true,
+    }
   })
   res.socket.server.io = io
 

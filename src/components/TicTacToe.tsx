@@ -117,11 +117,13 @@ export default function TicTacToe() {
         socket = io(socketUrl, {
           path: '/api/socketio',
           addTrailingSlash: false,
-          transports: ['websocket'],
+          transports: ['websocket', "polling"],
           reconnection: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
-          secure: true
+          secure: true,
+          rejectUnauthorized: false, // Add this for self-signed certificates
+          withCredentials: true
         });
 
         socket.on('connect', () => {
